@@ -4,8 +4,8 @@ import os
 
 def load_data(file_path):
     """
-    Load raw data from a csv file. 
-    Handle missing flies and wrong data formats.
+    Load raw data from a csv file.
+    Handle missing files and wrong data formats.
     """
     # Check if file exists
     if not os.path.exists(file_path):
