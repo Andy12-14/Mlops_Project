@@ -98,7 +98,6 @@ def process_dataframe(
     Args:
         data_path: Path to the dataset CSV. If None, uses default path.
         text_column: Name of the main text column to process.
-        : Name of the reply text column to process.
         tokenizer_name: Name of the HuggingFace tokenizer to use.
         max_length: Maximum sequence length for tokenization.
         test_size: Proportion of data to use for validation.
