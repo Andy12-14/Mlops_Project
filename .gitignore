@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache
 .DS_Store
 model_outputs/
+sentiment_classifier.joblib
