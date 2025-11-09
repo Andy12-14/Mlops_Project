@@ -16,7 +16,9 @@ Mlops_Project/
 │   ├── model.py              # SentimentClassifier (train/evaluate/save)
 │   └── inference.py          # SentimentPredictor (load model and predict)
 ├── tests/
-│   └── unit/                 # pytest unit tests for each module
+│   └── unit/
+|   ├── test_model.py              # SentimentClassifier (train/evaluate/save)
+│   └── test_inference.py              # pytest unit tests for each module
 ├── requirements.txt          # pinned Python dependencies
 ├── pytest.ini
 └── README.md
@@ -146,13 +148,5 @@ Edge cases to consider
 3. Add tests for new behaviour
 4. Open a pull request
 
-## License & contact
 
-This project is provided as-is. Add your preferred license file (e.g., `LICENSE`) to make licensing explicit. For questions or help, open an issue in the repository.
-
----
-
-If you'd like, I can also:
-- run the test suite now and report results (quick smoke test), or
-- add a short CONTRIBUTING.md and a minimal `requirements.txt` review to ensure everything needed for the README steps is present.
 
