@@ -72,4 +72,3 @@ def test_predict_multiple_texts(mock_joblib_load, mock_classifier):
         assert "confidence" in r
         assert isinstance(r["confidence"], float)
         assert 0.0 <= r["confidence"] <= 1.0
-

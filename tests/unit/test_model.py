@@ -57,4 +57,4 @@ def test_model_compute_metrics_basic(classifier):
     assert expected_keys.issubset(metrics.keys()), "Missing expected metric keys"
     assert isinstance(metrics["accuracy"], float)
     assert isinstance(metrics["confusion_matrix"], list)
-    assert len(metrics["confusion_matrix"]) == 2
+    assert len(metrics["confusion_matrix"]) == 2.0
