@@ -1,111 +1,158 @@
-# MLOps Project: Sentiment Analysis of User Reviews
+# MLOps Project — Sentiment Analysis of User Reviews
 
-This project implements a machine learning pipeline for sentiment analysis of user reviews. The goal is to classify reviews as either positive or negative. The project is structured to follow MLOps best practices, including data processing, model training, and inference.
+This repository contains a small MLOps-style pipeline for performing sentiment analysis on user reviews. It includes data extraction, preprocessing, a model training pipeline (fine-tuning a transformer), and an inference interface with unit tests.
 
-This project was a collaborative effort by a team of four. Each member worked on their own branch, and all code was peer-reviewed before being merged into the main branch.
+This README explains how to set up the environment, run the pipeline, and use the provided modules.
 
-## Project Structure
+## Repo layout
 
 ```
-.
-├── dataset
-│   └── dataset.csv
-├── src
-│   ├── data_extraction.py
-│   ├── data_processing.py
-│   ├── model.py
-│   └── inference.py
-├── tests
-│   └── unit
-│       └── test_data_extraction.py
-├── .gitignore
-├── README.md
-└── requirements.txt
+Mlops_Project/
+├── dataset/
+│   └── dataset.csv            # Raw dataset (CSV)
+├── src/
+│   ├── data_extraction.py    # load_data(...) - reads dataset.csv
+│   ├── data_processing.py    # process_dataframe(...) - cleaning, tokenization, split
+│   ├── model.py              # SentimentClassifier (train/evaluate/save)
+│   └── inference.py          # SentimentPredictor (load model and predict)
+├── tests/
+│   └── unit/                 # pytest unit tests for each module
+├── requirements.txt          # pinned Python dependencies
+├── pytest.ini
+└── README.md
 ```
 
-- **`dataset/dataset.csv`**: The raw data containing user reviews.
-- **`src/data_extraction.py`**: A script to load data from the CSV file.
-- **`src/data_processing.py`**: This script handles text cleaning, tokenization, and splitting the data into training and validation sets. It also uses a pre-trained model to generate initial sentiment labels.
-- **`src/model.py`**: This script defines the sentiment classification model, a training pipeline, and evaluation metrics. It uses the Hugging Face `transformers` library to fine-tune a pre-trained BERT model.
-- **`src/inference.py`**: This script provides a class to load the trained model and perform sentiment prediction on new text.
-- **`tests/`**: Contains unit tests for the project.
-- **`requirements.txt`**: A list of all the Python packages required to run the project.
+Brief component descriptions
+- `dataset/dataset.csv`: CSV of user reviews and any metadata. Keep sensitive data out of the repo.
+- `src/data_extraction.py`: Contains helpers to load the CSV into a pandas DataFrame (e.g., `load_data(path)`).
+- `src/data_processing.py`: Preprocessing pipeline functions such as `process_dataframe(df, ...)` that clean text, tokenize (when needed), label or map sentiment targets, and split into train/validation sets.
+- `src/model.py`: Defines the model training and evaluation. Main class is expected as `SentimentClassifier` with methods to `train(...)`, `evaluate(...)`, and `save(output_dir)`.
+- `src/inference.py`: Lightweight predictor `SentimentPredictor` which loads a saved model and exposes `predict(text_or_list)` returning labels and confidence scores.
+- `tests/unit/*`: Pytest unit tests that exercise the above modules.
 
-## How It Works
+## Quick setup (Windows with bash)
 
-The project follows a standard machine learning pipeline:
+The instructions below assume you are running the `bash.exe` shell (Git Bash / WSL-compatible). Adjust the virtual environment commands for plain PowerShell or CMD if needed.
 
-1.  **Data Extraction**: The `load_data` function in `data_extraction.py` reads the user reviews from `dataset.csv`.
-2.  **Data Processing**: The `process_dataframe` function in `data_processing.py` takes the raw data and performs several preprocessing steps:
-    - **Text Cleaning**: Removes URLs, email addresses, and other noise from the review text.
-    - **Tokenization**: Uses a pre-trained tokenizer from the `transformers` library to convert the text into a format suitable for the model.
-    - **Sentiment Labeling**: Uses a pre-trained sentiment analysis model to assign an initial sentiment score and label (positive/negative) to each review.
-    - **Data Splitting**: Splits the processed data into training and validation sets.
-3.  **Model Training**: The `model.py` script fine-tunes a `bert-base-uncased` model for sequence classification.
-    - The `SentimentClassifier` class manages the model, tokenizer, and training process.
-    - The `train` method uses the `Trainer` API from the `transformers` library to fine-tune the model on the training data.
-    - During training, the model's performance is evaluated on the validation set, and metrics such as accuracy, precision, recall, and F1-score are calculated.
-4.  **Inference**: The `inference.py` script is used to make predictions on new, unseen text.
-    - The `SentimentPredictor` class loads the fine-tuned model and provides a `predict` method that takes a string or a list of strings and returns the sentiment prediction(s).
-
-## How to Use
-
-### 1. Installation
-
-First, clone the repository and install the required dependencies:
+1. Create and activate a virtual environment
 
 ```bash
-git clone <repository-url>
-cd MLOps_project
+cd "c:/Users/oman/Desktop/MLops project/Mlops_Project"
+python -m venv .venv
+source .venv/Scripts/activate  # on Git Bash this works; on WSL use source .venv/bin/activate
+```
+
+2. Install dependencies
+
+```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 2. Data Processing
+If you prefer, create an editable install for development:
 
-To process the data, run the `data_processing.py` script. This will clean the data, generate sentiment labels, and prepare it for training.
+```bash
+pip install -e .
+```
+
+Note: `requirements.txt` should list packages like pandas, pytest and transformers if used by the code. If anything is missing, add it and re-run `pip install -r requirements.txt`.
+
+## Usage examples
+
+Below are common usage patterns. The exact function signatures in your `src` modules may vary slightly — these examples show the intended contract.
+
+1) Load data (data_extraction)
+
+```python
+from src.data_extraction import load_data
+
+df = load_data("dataset/dataset.csv")
+print(df.head())
+```
+
+2) Preprocess and split (data_processing)
+
+```python
+from src.data_processing import process_dataframe
+
+# process_dataframe should return at least: train_df, val_df
+train_df, val_df = process_dataframe(df, text_col="review_text", label_col="label")
+```
+
+3) Train model (model)
+
+```python
+from src.model import SentimentClassifier
+
+clf = SentimentClassifier(model_name="bert-base-uncased")
+clf.train(train_df, val_df, epochs=2, batch_size=16, output_dir="model_outputs")
+clf.save("model_outputs/final")
+```
+
+4) Inference (inference)
+
+```python
+from src.inference import SentimentPredictor
+
+predictor = SentimentPredictor("model_outputs/final")
+print(predictor.predict("I love this product!"))
+print(predictor.predict(["Great app", "It crashed on start"]))
+```
+
+If your code expects CLI entrypoints, you can also run each module directly:
 
 ```bash
 python src/data_processing.py
+python src/model.py --epochs 3 --batch-size 16 --output-dir model_outputs
+python src/inference.py --text "This is great"
 ```
 
-### 3. Model Training
+## Tests
 
-To train the sentiment analysis model, run the `model.py` script. This will fine-tune the BERT model on the processed data and save the trained model to the `model_outputs` directory.
+Run unit tests with pytest from the project root:
 
 ```bash
-python src/model.py
+cd "c:/Users/oman/Desktop/MLops project/Mlops_Project"
+pytest -q
 ```
 
-You can customize the training process with command-line arguments:
-
-- `--epochs`: Number of training epochs.
-- `--batch-size`: Training batch size.
-- `--output-dir`: Directory to save the trained model.
-- `--model-name`: The name of the pre-trained model to use.
-
-### 4. Inference
-
-To make predictions on new text, use the `inference.py` script. You can provide text directly via the command line or pass a file with a list of texts.
-
-**Predicting a single text:**
+If you want a single test file run:
 
 ```bash
-python src/inference.py --text "This is a great app!"
+pytest -q tests/unit/test_model.py
 ```
 
-**Predicting from a file:**
+## Small contract & expectations
 
-Create a file (e.g., `texts.txt`) with one text per line:
+- Inputs: CSV file in `dataset/` with a text column (e.g., `review_text`) and optionally `label`.
+- Outputs: Trained model artifacts saved to `model_outputs/` and evaluation metrics printed/logged during training.
+- Errors: Modules should raise informative exceptions when files are missing or input shapes are incorrect. Functions should validate required columns.
 
-```
-This app is amazing!
-I'm not happy with the latest update.
-```
+Edge cases to consider
+- Empty or missing CSV file — fail fast with a clear message.
+- Very short or non-English text — preprocessing should handle or drop these safely.
+- Large datasets — consider streaming or batching.
 
-Then run the inference script:
+## Development tips
 
-```bash
-python src/inference.py --file texts.txt
-```
+- Add missing packages to `requirements.txt` and pin versions for reproducibility.
+- Add a `Makefile` or small CLI wrapper if you repeatedly run the same sequence of steps.
+- For CI, run `pytest` and a lightweight linting step (e.g., flake8).
 
-The script will output the sentiment ("Positive" or "Negative"), confidence score, and the probabilities for each class.
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new behaviour
+4. Open a pull request
+
+## License & contact
+
+This project is provided as-is. Add your preferred license file (e.g., `LICENSE`) to make licensing explicit. For questions or help, open an issue in the repository.
+
+---
+
+If you'd like, I can also:
+- run the test suite now and report results (quick smoke test), or
+- add a short CONTRIBUTING.md and a minimal `requirements.txt` review to ensure everything needed for the README steps is present.
+
