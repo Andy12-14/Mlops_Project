@@ -3,6 +3,7 @@ import argparse
 from typing import List, Union
 import torch
 from data_processing import clean_text
+from model import SentimentClassifier
 import numpy as np
 
 
@@ -48,7 +49,7 @@ class SentimentPredictor:
             texts,
             truncation=True,
             padding=True,
-            max_length=128,
+            max_length=512,
             return_tensors="pt"
         ).to(self.device)
         

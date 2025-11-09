@@ -8,7 +8,8 @@ from transformers import (
 	AutoModelForSequenceClassification,
 	TrainingArguments,
 	Trainer,
-	EarlyStoppingCallback
+	EarlyStoppingCallback,
+	DataCollatorWithPadding
 )
 from sklearn.metrics import (
     accuracy_score,
@@ -23,9 +24,8 @@ from data_processing import process_dataframe
 
 class SentimentDataset(torch.utils.data.Dataset):
 	def __init__(self, encodings, labels):
-		# encodings: dict of lists or tensors for input_ids, attention_mask
-		self.encodings = {k: (v if isinstance(v, list) else v.tolist()) for k, v in encodings.items()}
-		self.labels = list(labels)
+		self.encodings = encodings
+		self.labels = labels
 
 	def __getitem__(self, idx):
 		item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
@@ -109,10 +109,10 @@ class SentimentClassifier:
 			  warmup_steps: int = 0,
 			  weight_decay: float = 0.0,
 			  logging_steps: int = 50,
-			  eval_steps: int = 200,
-			  save_steps: int = 500,
+			  eval_steps: int = 100,
+			  save_steps: int = 100,
 			  early_stopping_patience: int = 2,
-			  max_length: int = 128):
+			  max_length: int = 512):
 
 		training_args = TrainingArguments(
 			output_dir=output_dir,
@@ -123,7 +123,7 @@ class SentimentClassifier:
 			warmup_steps=warmup_steps,
 			weight_decay=weight_decay,
 			logging_steps=logging_steps,
-			evaluation_strategy="steps" if val_texts is not None else "no",
+			eval_strategy="steps" if val_texts is not None else "no",
 			eval_steps=eval_steps,
 			save_steps=save_steps,
 			load_best_model_at_end=True if val_texts is not None else False,
@@ -133,13 +133,15 @@ class SentimentClassifier:
 		)
 
 		# Tokenize
-		train_enc = self.tokenizer(train_texts, padding=True, truncation=True, max_length=max_length, return_tensors="pt")
+		train_enc = self.tokenizer(train_texts, truncation=True, max_length=max_length)
 		train_dataset = SentimentDataset(train_enc, train_labels)
 
 		val_dataset = None
 		if val_texts is not None and val_labels is not None:
-			val_enc = self.tokenizer(val_texts, padding=True, truncation=True, max_length=max_length, return_tensors="pt")
+			val_enc = self.tokenizer(val_texts, truncation=True, max_length=max_length)
 			val_dataset = SentimentDataset(val_enc, val_labels)
+
+		data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer)
 
 		trainer = Trainer(
 			model=self.model,
@@ -147,7 +149,8 @@ class SentimentClassifier:
 			train_dataset=train_dataset,
 			eval_dataset=val_dataset,
 			compute_metrics=self.compute_metrics,
-			callbacks=[EarlyStoppingCallback(early_stopping_patience=early_stopping_patience)] if val_dataset is not None else None
+			callbacks=[EarlyStoppingCallback(early_stopping_patience=early_stopping_patience)] if val_dataset is not None else None,
+			data_collator=data_collator
 		)
 
 		# Train the model
@@ -170,7 +173,7 @@ class SentimentClassifier:
 			"model_name": self.model_name,
 			"num_labels": self.num_labels,
 			"device": str(self.device),
-			"max_length": trainer.args.max_length,
+			"max_length": max_length,
 		}
 		import json
 		config_path = os.path.join(output_dir, "model_config.json")
@@ -185,7 +188,7 @@ def main():
 	parser.add_argument("--batch-size", type=int, default=16)
 	parser.add_argument("--output-dir", type=str, default="model_outputs")
 	parser.add_argument("--model-name", type=str, default="bert-base-uncased")
-	parser.add_argument("--max-length", type=int, default=128)
+	parser.add_argument("--max-length", type=int, default=512)
 	args = parser.parse_args()
 
 	print("Loading and processing data (this may download tokenizers/models on first run)...")
