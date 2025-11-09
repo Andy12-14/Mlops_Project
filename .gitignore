@@ -4,3 +4,4 @@ __pycache__/
 .coverage
 .pytest_cache
 .DS_Store
+model_outputs/
