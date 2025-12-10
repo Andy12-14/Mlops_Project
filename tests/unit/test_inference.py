@@ -10,11 +10,11 @@ def mock_classifier():
     """Create a mock SentimentClassifier with a dummy tokenizer and model."""
     mock_classifier = MagicMock()
     
-    # Mock tokenizer behavior
-    mock_classifier.tokenizer.return_value = {
-        "input_ids": torch.tensor([[1, 2, 3]]),
-        "attention_mask": torch.tensor([[1, 1, 1]])
-    }
+    # Mock tokenizer behavior - needs .to() method like BatchEncoding
+    mock_encoded = MagicMock()
+    mock_encoded.__getitem__ = lambda self, key: torch.tensor([[1, 2, 3]]) if key == "input_ids" else torch.tensor([[1, 1, 1]])
+    mock_encoded.to = MagicMock(return_value=mock_encoded)
+    mock_classifier.tokenizer.return_value = mock_encoded
 
     # Mock model output (logits)
     mock_outputs = MagicMock()
