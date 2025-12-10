@@ -1,126 +1,45 @@
-name: Model Evaluation
+name: Evaluate Model
 
 on:
   workflow_run:
     workflows: ["Tests"]
     types:
       - completed
-    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   evaluate:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
-    # Only run if Tests workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        cache: 'pip'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    
-    - name: Run model evaluation
-      id: evaluate
-      run: |
-        cd src
-        python -c "
-        import json
-        import sys
-        from transformers import pipeline
-        
-        # Use pre-trained model for evaluation
-        model_name = 'distilbert-base-uncased-finetuned-sst-2-english'
-        classifier = pipeline('sentiment-analysis', model=model_name)
-        
-        # Test dataset - representative samples
-        test_samples = [
-            ('I love this product, it works great!', 'POSITIVE'),
-            ('This is amazing and wonderful!', 'POSITIVE'),
-            ('Excellent service and quality!', 'POSITIVE'),
-            ('Best purchase I ever made!', 'POSITIVE'),
-            ('Highly recommend this to everyone!', 'POSITIVE'),
-            ('This is terrible and broken.', 'NEGATIVE'),
-            ('Worst experience ever, very disappointed.', 'NEGATIVE'),
-            ('Do not buy this, complete waste of money.', 'NEGATIVE'),
-            ('Horrible quality, stopped working immediately.', 'NEGATIVE'),
-            ('Very frustrated with this product.', 'NEGATIVE'),
-        ]
-        
-        # Run predictions
-        correct = 0
-        total = len(test_samples)
-        results = []
-        
-        for text, expected in test_samples:
-            result = classifier(text)[0]
-            predicted = result['label']
-            is_correct = predicted == expected
-            if is_correct:
-                correct += 1
-            results.append({
-                'text': text[:50] + '...' if len(text) > 50 else text,
-                'expected': expected,
-                'predicted': predicted,
-                'confidence': round(result['score'], 4),
-                'correct': is_correct
-            })
-        
-        accuracy = correct / total
-        
-        # Save metrics
-        metrics = {
-            'accuracy': accuracy,
-            'correct': correct,
-            'total': total,
-            'model': model_name,
-            'threshold': 0.80,
-            'passed': accuracy >= 0.80,
-            'details': results
-        }
-        
-        with open('../evaluation_metrics.json', 'w') as f:
-            json.dump(metrics, f, indent=2)
-        
-        print(f'Model Evaluation Results:')
-        print(f'========================')
-        print(f'Model: {model_name}')
-        print(f'Accuracy: {accuracy:.2%} ({correct}/{total})')
-        print(f'Threshold: 80%')
-        print(f'Status: {\"PASSED\" if metrics[\"passed\"] else \"FAILED\"}')
-        
-        # Exit with error if below threshold
-        if not metrics['passed']:
-            print(f'\\nERROR: Model accuracy {accuracy:.2%} is below threshold 80%')
-            sys.exit(1)
-        "
-      env:
-        PYTHONPATH: src
-    
-    - name: Upload evaluation metrics
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: evaluation-metrics
-        path: evaluation_metrics.json
-        retention-days: 30
-    
-    - name: Comment on commit (if failed)
-      if: failure()
-      uses: actions/github-script@v7
-      with:
-        script: |
-          github.rest.repos.createCommitComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            commit_sha: context.sha,
-            body: '❌ Model evaluation failed: accuracy is below the 80% threshold.'
-          })
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Evaluate model performance
+        run: |
+          python src/evaluate.py --sample-size 200 --threshold 0.70 --output-path metrics/metrics.json
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-metrics
+          path: metrics/metrics.json

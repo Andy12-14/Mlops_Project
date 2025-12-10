@@ -1,48 +1,22 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  # Main sentiment analysis API service
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: sentiment-api
     ports:
       - "8000:8000"
-    volumes:
-      # Persist trained models between container restarts
-      - model_data:/app/model_outputs
-      # Persist application logs
-      - logs:/app/logs
-      # Persist evaluation plots
-      - evaluation_plots:/app/evaluation_plots
     environment:
-      - PYTHONUNBUFFERED=1
       - MODEL_PATH=/app/model_outputs/sentiment_classifier.joblib
-    restart: unless-stopped
-    networks:
-      - sentiment-network
-    healthcheck:
-      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - PYTHONPATH=/app/src
+      - TRANSFORMERS_CACHE=/app/.cache/huggingface
+      - HF_HOME=/app/.cache/huggingface
+    volumes:
+      - model_outputs:/app/model_outputs
+      - hf_cache:/app/.cache/huggingface
+      - ./dataset:/app/dataset:ro
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
 
-# Named volumes for data persistence
 volumes:
-  model_data:
-    driver: local
-    name: sentiment_model_data
-  logs:
-    driver: local
-    name: sentiment_logs
-  evaluation_plots:
-    driver: local
-    name: sentiment_evaluation_plots
-
-# Network for service communication
-networks:
-  sentiment-network:
-    driver: bridge
-    name: sentiment-network
+  model_outputs:
+  hf_cache:

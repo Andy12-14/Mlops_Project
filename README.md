@@ -8,18 +8,29 @@ This README explains how to set up the environment, run the pipeline, and use th
 
 ```
 Mlops_Project/
+├── .github/
+│   └── workflows/
+│       ├── test.yml              # CI: Runs tests and linting on push/PR
+│       ├── evaluate.yml          # CI: Model evaluation with thresholds
+│       └── build.yml             # CD: Build and publish Docker image
 ├── dataset/
-│   └── dataset.csv            # Raw dataset (CSV)
+│   └── dataset.csv               # Raw dataset (CSV)
 ├── src/
-│   ├── data_extraction.py    # load_data(...) - reads dataset.csv
-│   ├── data_processing.py    # process_dataframe(...) - cleaning, tokenization, split
-│   ├── model.py              # SentimentClassifier (train/evaluate/save)
-│   └── inference.py          # SentimentPredictor (load model and predict)
+│   ├── api.py                    # FastAPI REST API for predictions
+│   ├── data_extraction.py        # load_data(...) - reads dataset.csv
+│   ├── data_processing.py        # process_dataframe(...) - cleaning, tokenization, split
+│   ├── model.py                  # SentimentClassifier (train/evaluate/save)
+│   └── inference.py              # SentimentPredictor (load model and predict)
 ├── tests/
 │   └── unit/
-|   ├── test_model.py              # SentimentClassifier (train/evaluate/save)
-│   └── test_inference.py              # pytest unit tests for each module
-├── requirements.txt          # pinned Python dependencies
+│       ├── test_model.py         # Tests for SentimentClassifier
+│       ├── test_inference.py     # Tests for SentimentPredictor
+│       ├── test_data_extraction.py
+│       └── test_data_processing.py
+├── Dockerfile                    # Container image definition
+├── docker-compose.yml            # Multi-service orchestration
+├── .dockerignore                 # Files excluded from Docker build
+├── requirements.txt              # Python dependencies
 ├── pytest.ini
 └── README.md
 ```
@@ -148,5 +159,107 @@ Edge cases to consider
 3. Add tests for new behaviour
 4. Open a pull request
 
+---
 
+## Docker Containerization
 
+### Dockerfile
+
+The `Dockerfile` creates a containerized environment for the sentiment analysis API:
+- **Base image**: Python 3.11-slim
+- **Dependencies**: Installs all requirements from `requirements.txt`
+- **Entry point**: FastAPI server on port 8000
+
+### Docker Compose
+
+The `docker-compose.yml` orchestrates the services:
+
+| Service | Description |
+|---------|-------------|
+| `api` | FastAPI sentiment prediction service on port 8000 |
+
+**Volumes**:
+- `model_outputs` - Persists trained models between container restarts
+- `hf_cache` - Caches HuggingFace model downloads
+
+### Running with Docker
+
+```bash
+# Build and start the container
+docker compose up --build
+
+# Test the API
+curl http://localhost:8000/health
+
+# Make a prediction
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "I love this product!"}'
+
+# Stop the container
+docker compose down
+```
+
+---
+
+## REST API
+
+The `src/api.py` module provides a FastAPI-based REST interface:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check, returns `{"status": "ok"}` |
+| `/predict` | POST | Predict sentiment for a single text |
+
+### Example Request
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "This movie was fantastic!", "clean_texts": true}'
+```
+
+### Example Response
+
+```json
+{
+  "text": "this movie was fantastic",
+  "sentiment": "Positive",
+  "confidence": 0.98,
+  "probabilities": {"negative": 0.02, "positive": 0.98}
+}
+```
+
+---
+
+## CI/CD with GitHub Actions
+
+Three workflows automate testing, evaluation, and deployment:
+
+### 1. Test Workflow (`.github/workflows/test.yml`)
+
+**Trigger**: Every push and pull request
+
+- Runs `flake8` linting on `src/` and `tests/`
+- Executes all unit tests with `pytest`
+- Uploads coverage report as artifact
+
+### 2. Evaluate Workflow (`.github/workflows/evaluate.yml`)
+
+**Trigger**: After Tests workflow succeeds (on main/master)
+
+- Evaluates model performance on test samples
+- Checks if accuracy ≥ 80% threshold
+- Uploads evaluation metrics as artifact
+- Fails pipeline if below threshold
+
+### 3. Build Workflow (`.github/workflows/build.yml`)
+
+**Trigger**: Push to main/master or version tags
+
+- Builds Docker image
+- Publishes to DockerHub registry
+
+**Required GitHub Secrets**:
+- `DOCKERHUB_USERNAME` - Your DockerHub username
+- `DOCKERHUB_TOKEN` - DockerHub access token

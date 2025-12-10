@@ -6,3 +6,6 @@ __pycache__/
 .DS_Store
 model_outputs/
 sentiment_classifier.joblib
+.cache/
+evaluation_plots/
+metrics/
