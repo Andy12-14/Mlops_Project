@@ -120,6 +120,31 @@ python src/model.py --epochs 3 --batch-size 16 --output-dir model_outputs
 python src/inference.py --text "This is great"
 ```
 
+## Containerization (Docker)
+
+- Build the API image from the project root:
+
+```bash
+docker build -t sentiment-api .
+```
+
+- Start the stack (serves FastAPI on port 8000):
+
+```bash
+docker compose up --build
+```
+
+Services and volumes:
+- `api` (FastAPI) on `8000`.
+- Volumes: `model_outputs` for the trained `sentiment_classifier.joblib`, `hf_cache` for Hugging Face cache. `dataset` is mounted read-only into the container.
+
+If you train locally, place the exported model in `model_outputs/` so the container can load it.
+
+## FastAPI endpoints
+
+- `GET /health` - health check
+- `POST /predict` - body: `{"text": "...", "clean_texts": true}`; returns sentiment, confidence, and class probabilities.
+
 ## Tests
 
 Run unit tests with pytest from the project root:
@@ -134,6 +159,12 @@ If you want a single test file run:
 ```bash
 pytest -q tests/unit/test_model.py
 ```
+
+## CI/CD (GitHub Actions)
+
+- `.github/workflows/test.yml`: runs lint (flake8) and pytest on every push/PR.
+- `.github/workflows/evaluate.yml`: runs after Tests succeed (or manually), evaluates the model with `src/evaluate.py`, uploads `metrics/metrics.json`, and fails if accuracy is below the threshold.
+- `.github/workflows/build.yml`: builds the Docker image and pushes to DockerHub using `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` secrets (push skipped on PRs).
 
 ## Small contract & expectations
 
