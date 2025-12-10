@@ -273,14 +273,13 @@ Three workflows automate testing, evaluation, and deployment:
 
 - Runs `flake8` linting on `src/` and `tests/`
 - Executes all unit tests with `pytest`
-- Uploads coverage report as artifact
 
 ### 2. Evaluate Workflow (`.github/workflows/evaluate.yml`)
 
 **Trigger**: After Tests workflow succeeds (on main/master)
 
 - Evaluates model performance on test samples
-- Checks if accuracy ≥ 80% threshold
+- Checks if accuracy ≥ 70% threshold
 - Uploads evaluation metrics as artifact
 - Fails pipeline if below threshold
 
@@ -292,5 +291,5 @@ Three workflows automate testing, evaluation, and deployment:
 - Publishes to DockerHub registry
 
 **Required GitHub Secrets**:
-- `DOCKERHUB_USERNAME` - Your DockerHub username
-- `DOCKERHUB_TOKEN` - DockerHub access token
+- `DOCKERHUB_USERNAME` - Marc's DockerHub username
+- `DOCKERHUB_TOKEN` - Marc's DockerHub access token
