@@ -61,6 +61,12 @@ def test_predict_single_text(mock_joblib_load, mock_classifier):
 def test_predict_multiple_texts(mock_joblib_load, mock_classifier):
     """Test prediction for multiple inputs at once."""
     mock_joblib_load.return_value = mock_classifier
+    
+    # Override model output to return 2 rows for 2 texts
+    mock_outputs = MagicMock()
+    mock_outputs.logits = torch.tensor([[2.0, 0.5], [0.3, 1.8]])  # 2 predictions
+    mock_classifier.model.return_value = mock_outputs
+    
     predictor = SentimentPredictor("fake/model/path")
 
     texts = ["Good movie", "Bad service"]
